@@ -14,7 +14,6 @@ const trixEditorStyle = {
 
 export default class TrixEditor extends React.Component<{}, TrixEditorState> {
   ref: HTMLElement;
-  // trixEditor: any;
 
   componentDidMount() {
     this.ref.addEventListener('trix-change', this.trixChange.bind(this));
