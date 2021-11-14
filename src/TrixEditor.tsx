@@ -1,11 +1,14 @@
 import * as React from 'react';
 import 'trix';
 
+import NAMES from './names.json';
+
 interface TrixEditorState {
   editorDocument: string;
   editorSelection: string;
   selectionString: string;
   mention: string;
+  mentionSuggestions: string;
 }
 
 const trixEditorStyle = {
@@ -54,9 +57,20 @@ export default class TrixEditor extends React.Component<{}, TrixEditorState> {
 
     const location = this.editor().getDocument().locationFromPosition(this.editor().getPosition());
     const text = this.editor().getDocument().getTextAtPosition(this.editor().getPosition());
-    const mention = cursorMention(location.offset, text.toString())?.name;
+    const mention = cursorMention(location.offset, text.toString());
 
-    this.setState({editorSelection: JSON.stringify(selection), selectionString, mention});
+    const suggestions = mentionSuggestions(mention);
+
+    this.setState({
+      editorSelection: JSON.stringify(selection),
+      selectionString, 
+      mention: JSON.stringify(mention),
+      mentionSuggestions: JSON.stringify(suggestions),
+    });
+  }
+
+  pickRandomMention() {
+
   }
 
   trixKeyDown(event: KeyboardEvent) {
@@ -75,11 +89,21 @@ export default class TrixEditor extends React.Component<{}, TrixEditorState> {
     const editorSelection = this.state?.editorSelection;
     const selectionString = this.state?.selectionString;
     const mention = this.state?.mention;
+    const mentionSuggestions = this.state?.mentionSuggestions;
 
     return (
       <div>
         {React.createElement('trix-editor', {ref: (ref: HTMLElement) => { this.ref = ref }, style: trixEditorStyle})}
 
+        { mentionSuggestions && mentionSuggestions.length > 2 && (
+          <button onClick={this.pickRandomMention.bind(this)}>
+            {'Pick random mention'}
+          </button>
+        ) }
+
+        <pre>
+          {mentionSuggestions}
+         </pre>
         <pre>
           {mention != null ? '@' : ''}{mention}
         </pre>
@@ -95,6 +119,18 @@ export default class TrixEditor extends React.Component<{}, TrixEditorState> {
       </div>
     )
   }
+}
+
+export function mentionSuggestions( mention: { name: string } ): Array<string> {
+  if (!mention) {
+    return [];
+  }
+
+  const pattern = mention.name.toLowerCase().replace(/\s/, '')
+
+  const names = (NAMES.names as unknown as Array<string>);
+
+  return names.filter( (name) => { return name.toLowerCase().replace(/\s/, '').indexOf(pattern) >= 0 });
 }
 
 const mention_re = /(?<before>.{0,1})@(?<name>\w*)(?<after>.{0,1})/g;
