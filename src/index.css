@@ -1,3 +1,19 @@
 * {
   font-family: Roboto;
 }
+
+mention {
+  color: blue;
+  background-color: lightblue;
+  border-radius: 4px;
+}
+
+figure.attachment--mention {
+  background-color: orchid;
+  display: inline-block;
+  margin: 0;
+}
+
+figure.attachment--mention > .attachment__toolbar {
+  display: none;
+}

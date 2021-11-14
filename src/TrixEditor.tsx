@@ -1,14 +1,17 @@
 import * as React from 'react';
-import 'trix';
+const Trix = require('trix');
 
 import NAMES from './names.json';
 
 interface TrixEditorState {
   editorDocument: string;
   editorSelection: string;
+  editorSelectionRange: number[];
+  editorLocation: { index: number; offset: number; }
   selectionString: string;
-  mention: string;
-  mentionSuggestions: string;
+  mention: CursorMention;
+  mentionSuggestionsStr: string;
+  mentionSuggestions: string[];
 }
 
 const trixEditorStyle = {
@@ -52,7 +55,9 @@ export default class TrixEditor extends React.Component<{}, TrixEditorState> {
     // location is (indexBlock, indexString) the block index, the index in the block string (called offset in trix code)
     //
     // Thus we can determine the cursor position and grab text around it (to know you are doing an at)
-    const selection = [this.editor().getSelectedRange(), this.editor().getDocument().locationFromPosition(this.editor().getPosition())];
+    const editorSelectionRange = this.editor().getSelectedRange();
+    const editorLocation = this.editor().getDocument().locationFromPosition(this.editor().getPosition());
+    const selection = [editorSelectionRange, editorLocation];
     const selectionString = this.editor().getSelectedDocument().toString();
 
     const location = this.editor().getDocument().locationFromPosition(this.editor().getPosition());
@@ -63,14 +68,39 @@ export default class TrixEditor extends React.Component<{}, TrixEditorState> {
 
     this.setState({
       editorSelection: JSON.stringify(selection),
+      editorSelectionRange,
+      editorLocation,
       selectionString, 
-      mention: JSON.stringify(mention),
-      mentionSuggestions: JSON.stringify(suggestions),
+      mention: mention,
+      mentionSuggestionsStr: JSON.stringify(suggestions),
+      mentionSuggestions: suggestions,
     });
   }
 
-  pickRandomMention() {
+  onPickRandomMention() {
+    const {mention, mentionSuggestions, editorLocation} = this.state;
 
+    if (!mention || !mentionSuggestions) {
+      return;
+    }
+
+    const randomIndex = Math.floor(Math.random() * mentionSuggestions.length);
+    const namePicked = mentionSuggestions[randomIndex];
+    console.log(namePicked);
+
+    const mentionLocation = { index: editorLocation.index, offset: mention.index };
+    const mentionPosition = this.editor().getDocument().positionFromLocation(mentionLocation);
+
+    this.editor().setSelectedRange([mentionPosition, mention.length]);
+
+
+    const html = `<mention>@${namePicked}</mention>`;
+
+    const attachment = new Trix.Attachment({ content: html });
+    attachment.getType = () => 'mention';
+    this.editor().insertAttachment(attachment);
+
+    // this.editor().insertHTML(html);
   }
 
   trixKeyDown(event: KeyboardEvent) {
@@ -89,23 +119,23 @@ export default class TrixEditor extends React.Component<{}, TrixEditorState> {
     const editorSelection = this.state?.editorSelection;
     const selectionString = this.state?.selectionString;
     const mention = this.state?.mention;
-    const mentionSuggestions = this.state?.mentionSuggestions;
+    const mentionSuggestionsStr = this.state?.mentionSuggestionsStr;
 
     return (
       <div>
         {React.createElement('trix-editor', {ref: (ref: HTMLElement) => { this.ref = ref }, style: trixEditorStyle})}
 
-        { mentionSuggestions && mentionSuggestions.length > 2 && (
-          <button onClick={this.pickRandomMention.bind(this)}>
+        { mentionSuggestionsStr && mentionSuggestionsStr.length > 2 && (
+          <button onClick={this.onPickRandomMention.bind(this)}>
             {'Pick random mention'}
           </button>
         ) }
 
         <pre>
-          {mentionSuggestions}
+          {mentionSuggestionsStr}
          </pre>
         <pre>
-          {mention != null ? '@' : ''}{mention}
+          {JSON.stringify(mention)}
         </pre>
         <pre>
           {editorSelection}
@@ -136,7 +166,13 @@ export function mentionSuggestions( mention: { name: string } ): Array<string> {
 const mention_re = /(?<before>.{0,1})@(?<name>\w*)(?<after>.{0,1})/g;
 const space_re = /^\s$/;
 
-export function cursorMention(cursorIndex: number, inputText: string): { name: string } {
+interface CursorMention {
+  name: string;
+  index: number;
+  length: number;
+}
+
+export function cursorMention(cursorIndex: number, inputText: string): CursorMention {
 
   const matches = inputText.matchAll(mention_re);
 
@@ -158,7 +194,10 @@ export function cursorMention(cursorIndex: number, inputText: string): { name: s
   if (!cursorMatch) {
     return null;
   }
-  
+
   const name = cursorMatch.groups.name;
-    return { name };
+  const index = cursorMatch.index + (cursorMatch.groups.before?.length ?? 0);
+  const length = name.length + 1;
+
+    return { name, index, length };
 }
