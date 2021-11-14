@@ -1,6 +1,5 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const TerserPlugin = require("terser-webpack-plugin");
 
 const isDev = process.NODE_ENV === 'dev'
 const mode = isDev ? 'development' : 'production';
@@ -12,21 +11,11 @@ const babelOptions = {
 module.exports = {
   mode,
   entry: {
-    // main: {
-    //   import: './src/index.tsx',
-    //   dependOn: 'vendor',
-    // },
-    // vendor: [
-    //   'react',
-    //   'react-dom',
-    // ]
     main: './src/index.tsx',
-    // vendor: [ 'react', 'react-dom'],
   },
-  // output: {
-  //   filename: 'main.js',
-  //   path: path.resolve(__dirname, 'dist'),
-  // },
+  output: {
+    clean: true,
+  },
   resolve: {
     extensions: ['.ts', '.tsx', '.js']
   },
@@ -44,7 +33,27 @@ module.exports = {
             loader: 'ts-loader',
           }
         ]
-      }
+      },
+      {
+        test: /\.css$/,
+        use: [
+          'style-loader',
+          'css-loader',
+        ],
+      },
+      {
+        test: /\.(woff|woff2)$/,
+      },
+      // {
+      //   test: /\.(woff|woff2|eot|ttf|svg)$/i,
+      //   loader: 'file-loader',
+      //   options: { name: '[name].[ext]', outputPath: 'assets/fonts/' },
+      // },
+      {
+        test: /\.(png|jpe?g|gif)$/i,
+        loader: 'file-loader',
+        options: { name: '[name].[ext]', outputPath: 'assets/images/' },
+      },
     ]
   },
   // devtool: null,
@@ -53,15 +62,11 @@ module.exports = {
   },
   optimization: {
     splitChunks: {
-      chunks: "all",
+      chunks: "initial",
       cacheGroups: {
         vendor: {
           test: /[\\/]node_modules[\\/]/,
-          name(module, chunks, cacheGroupKey) {
-            const moduleFileName = module.identifier().split('/').reduceRight((item) => item);
-            // const allChunksNames = chunks.map((item) => item.name).join('~');
-            return `${cacheGroupKey}-${moduleFileName}`;
-          },
+          filename: 'assets/js/vendor.[name].bundle.js',
         },
       },
     },
@@ -71,7 +76,7 @@ module.exports = {
       title: 'trixtest',
       template: './src/index.html',
       scriptLoading: 'blocking',
-    })
+    }),
   ],
   devServer: {
     static: {
