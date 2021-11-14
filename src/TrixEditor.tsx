@@ -5,6 +5,7 @@ interface TrixEditorState {
   editorDocument: string;
   editorSelection: string;
   selectionString: string;
+  mention: string;
 }
 
 const trixEditorStyle = {
@@ -37,8 +38,6 @@ export default class TrixEditor extends React.Component<{}, TrixEditorState> {
     const documentObject = JSON.parse(editorDocument);
     const prettyEditorDocument = JSON.stringify(documentObject,null,2);
     this.setState({editorDocument: prettyEditorDocument})
-
-    this.editor().getPosition()
   }
 
   trixSelectionChange() {
@@ -52,7 +51,12 @@ export default class TrixEditor extends React.Component<{}, TrixEditorState> {
     // Thus we can determine the cursor position and grab text around it (to know you are doing an at)
     const selection = [this.editor().getSelectedRange(), this.editor().getDocument().locationFromPosition(this.editor().getPosition())];
     const selectionString = this.editor().getSelectedDocument().toString();
-    this.setState({editorSelection: JSON.stringify(selection), selectionString})
+
+    const location = this.editor().getDocument().locationFromPosition(this.editor().getPosition());
+    const text = this.editor().getDocument().getTextAtPosition(this.editor().getPosition());
+    const mention = cursorMention(location.offset, text.toString())?.name;
+
+    this.setState({editorSelection: JSON.stringify(selection), selectionString, mention});
   }
 
   trixKeyDown(event: KeyboardEvent) {
@@ -70,11 +74,15 @@ export default class TrixEditor extends React.Component<{}, TrixEditorState> {
     const editorDocument = this.state?.editorDocument;
     const editorSelection = this.state?.editorSelection;
     const selectionString = this.state?.selectionString;
+    const mention = this.state?.mention;
 
     return (
       <div>
         {React.createElement('trix-editor', {ref: (ref: HTMLElement) => { this.ref = ref }, style: trixEditorStyle})}
 
+        <pre>
+          {mention != null ? '@' : ''}{mention}
+        </pre>
         <pre>
           {editorSelection}
         </pre>
@@ -87,4 +95,34 @@ export default class TrixEditor extends React.Component<{}, TrixEditorState> {
       </div>
     )
   }
+}
+
+const mention_re = /(?<before>.{0,1})@(?<name>\w*)(?<after>.{0,1})/g;
+const space_re = /^\s$/;
+
+export function cursorMention(cursorIndex: number, inputText: string): { name: string } {
+
+  const matches = inputText.matchAll(mention_re);
+
+  let cursorMatch;
+
+  for (const match of matches) {
+
+    const beforeIsEmpty = match.groups.before == null || match.groups.before === '' || space_re.test(match.groups.before);
+    const cursorAfterMatchStart = match.index <= cursorIndex;
+    const cursorBeforeMatchEnd = match.index + match[0].length >= cursorIndex;
+    const afterIsEmpty = match.groups.after == null || match.groups.after === '' || space_re.test(match.groups.after);
+
+    if ( beforeIsEmpty && cursorAfterMatchStart && cursorBeforeMatchEnd && afterIsEmpty) {
+      cursorMatch = match;
+      break;
+    }
+  }
+
+  if (!cursorMatch) {
+    return null;
+  }
+  
+  const name = cursorMatch.groups.name;
+    return { name };
 }
