@@ -6,6 +6,7 @@ mention {
   color: blue;
   background-color: lightblue;
   border-radius: 4px;
+  display: inline;
 }
 
 figure.attachment--mention {
